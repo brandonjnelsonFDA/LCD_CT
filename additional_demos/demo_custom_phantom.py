@@ -5,6 +5,7 @@ This demo shows how to define custom insert locations and run the LCD analysis.
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from src.lcdct.LCD import measure_LCD, plot_results
 from src.lcdct.select_inserts_interactive import select_inserts_interactive
 
@@ -56,20 +57,9 @@ def main():
     print("Results:")
     print(results)
 
-    # Interactive selection demo (commented out for automated runs)
-    # print("Interactive selection...")
-    # selected_coords = select_inserts_interactive(sp, n_inserts=2)
-    # # Add radius and HU to config
-    # interactive_config = []
-    # for coord in selected_coords:
-    #     interactive_config.append({
-    #         'x': coord['x'],
-    #         'y': coord['y'],
-    #         'r': 10, # Must be known
-    #         'HU': 0
-    #     })
-    # results_interactive = measure_LCD(sp, sa, interactive_config, observers)
-    # print(results_interactive)
+    plot_results(results)
+    plt.savefig('docs/source/custom_phantom_results.png')
+    print("Saved plot to docs/source/custom_phantom_results.png")
 
 if __name__ == "__main__":
     main()
