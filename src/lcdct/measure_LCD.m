@@ -113,20 +113,32 @@ for i=1:length(observers)
 end
 observers = observer_objs;
 
-% input is a binary mask specifying signal known exactly (SKE)
-truth_masks = get_demo_truth_masks(ground_truth);
-
-insert_rs = [];
-n_inserts = size(truth_masks, 3);
-for i=1:size(truth_masks, 3)
-    crop_r = max(insert_rs);
-    truth_mask = truth_masks(:,:,i);
-    if sum(truth_mask(:)) < 1
-        continue
+% Check if ground_truth is a config struct for custom phantom
+use_custom_config = false;
+if isstruct(ground_truth) && isfield(ground_truth, 'x') && isfield(ground_truth, 'y')
+    use_custom_config = true;
+    phantom_config = ground_truth;
+    n_inserts = length(phantom_config.x);
+    insert_rs = phantom_config.r;
+    if isscalar(insert_rs)
+         insert_rs = repmat(insert_rs, 1, n_inserts);
     end
-    insert_r = get_insert_radius(truth_mask);
-    insert_rs = [insert_rs insert_r];
+else
+    % input is a binary mask specifying signal known exactly (SKE)
+    truth_masks = get_demo_truth_masks(ground_truth);
+    n_inserts = size(truth_masks, 3);
+    insert_rs = [];
+    for i=1:size(truth_masks, 3)
+        truth_mask = truth_masks(:,:,i);
+        if sum(truth_mask(:)) < 1
+            insert_rs = [insert_rs 0];
+        else
+            insert_rs = [insert_rs get_insert_radius(truth_mask)];
+        end
+    end
 end
+
+crop_r = max(insert_rs);
 
 observer = [];
 snr = [];
@@ -139,17 +151,44 @@ for i=1:length(observers)
     model_observer = observers{i};
 
     for insert_idx = 1:n_inserts
-        truth_mask = truth_masks(:, :, insert_idx);
-        if sum(truth_mask(:)) < 1
-            continue
-        end
-        insert_r = get_insert_radius(truth_mask);
-        if isa(model_observer, "LG_CHO_2D")
-            model_observer.channel_width = 2/3*insert_r; % necesarry for LG_CHO to update channel width based on expected lesion size
-        end
 
-        sp_imgs = get_ROI_from_truth_mask(truth_mask, signal_present_array, 2*crop_r);
-        sa_imgs = get_ROI_from_truth_mask(truth_mask, signal_absent_array, 2*crop_r);
+        current_insert_r = insert_rs(insert_idx);
+
+        if use_custom_config
+            x_center = round(phantom_config.x(insert_idx));
+            y_center = round(phantom_config.y(insert_idx));
+
+            % Update LG_CHO channel width
+            if isa(model_observer, "LG_CHO_2D")
+                model_observer.channel_width = 2/3 * current_insert_r;
+            end
+
+            % Extract ROIs
+            sp_imgs = get_ROI_from_manual_selection(signal_present_array, x_center, y_center, current_insert_r);
+            sa_imgs = get_ROI_from_manual_selection(signal_absent_array, x_center, y_center, current_insert_r);
+
+            % Get HU
+             if isfield(phantom_config, 'HU')
+                 current_hu = phantom_config.HU(insert_idx);
+             else
+                 current_hu = NaN;
+             end
+
+        else
+            truth_mask = truth_masks(:, :, insert_idx);
+            if sum(truth_mask(:)) < 1
+                continue
+            end
+
+            if isa(model_observer, "LG_CHO_2D")
+                model_observer.channel_width = 2/3*current_insert_r; % necesarry for LG_CHO to update channel width based on expected lesion size
+            end
+
+            sp_imgs = get_ROI_from_truth_mask(truth_mask, signal_present_array, 2*crop_r);
+            sa_imgs = get_ROI_from_truth_mask(truth_mask, signal_absent_array, 2*crop_r);
+
+            current_hu = mode(ground_truth(logical(truth_mask)));
+        end
 
         % remove the dc component in images which human eyes do not perceive.
         for i_sp = 1:size(sp_imgs,3)
@@ -171,8 +210,8 @@ for i=1:length(observers)
             else
                 observer = [string(observer); string(model_observer.type)];
             end
-            insert_HU = [insert_HU; mode(ground_truth(logical(truth_mask)))];
-            insert_diameter_pix = [insert_diameter_pix; 2*insert_r];
+            insert_HU = [insert_HU; current_hu];
+            insert_diameter_pix = [insert_diameter_pix; 2*current_insert_r];
             snr = [snr; res.snr];
             auc = [auc; res.auc];
             reader = [reader; n];
@@ -194,4 +233,19 @@ end
 
 results = struct2table(results_dict);
 
+end
+
+function roi = get_ROI_from_manual_selection(img, x_center, y_center, r)
+    % Extract a square region from the image centered on (x_center, y_center) with radius r
+
+    [rows, cols,slices] = size(img);
+
+    % Define the bounding box for the region
+    x_min = max(1, x_center - r);
+    x_max = min(cols, x_center + r);
+    y_min = max(1, y_center - r);
+    y_max = min(rows, y_center + r);
+
+    % Extract the region of interest
+    roi = img(y_min:y_max, x_min:x_max,:);
 end
