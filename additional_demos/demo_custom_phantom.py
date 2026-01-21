@@ -6,8 +6,18 @@ This demo shows how to define custom insert locations and run the LCD analysis.
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from src.lcdct.LCD import measure_LCD, plot_results
-from src.lcdct.select_inserts_interactive import select_inserts_interactive
+import sys
+from pathlib import Path
+
+# Ensure src is in path if running from repo
+repo_root = Path(__file__).resolve().parent.parent
+src_path = repo_root / 'src'
+if src_path.exists():
+    sys.path.insert(0, str(src_path))
+    # print(f"Added {src_path} to sys.path") 
+
+from lcdct.LCD import measure_LCD, plot_results
+from lcdct.select_inserts_interactive import select_inserts_interactive
 
 def create_synthetic_data(sz=(10, 100, 100)):
     background = np.zeros(sz) + 100
@@ -45,10 +55,53 @@ def create_synthetic_data(sz=(10, 100, 100)):
     return signal_present, signal_absent, config
 
 def main():
-    print("Creating synthetic data...")
-    sp, sa, config = create_synthetic_data()
+    import argparse
+    parser = argparse.ArgumentParser(description='Custom Phantom LCD Demo')
+    parser.add_argument('--interactive', action='store_true', help='Run in interactive mode to select inserts')
+    args = parser.parse_args()
 
-    print("Running LCD analysis with programmatic custom configuration...")
+    print("Creating synthetic data...")
+    sp, sa, initial_config = create_synthetic_data()
+
+    if args.interactive:
+        print("Running in INTERACTIVE mode...")
+        print("Please select 2 insert locations in the window.")
+        # We need the radius and HU from the initial config or defined constants
+        # In this simple demo, we'll assume same radius/HU for all selected points 
+        # as defined in create_synthetic_data: radius=10, HU=[110, 120]
+        
+        # Note: select_inserts_interactive returns list of dicts [{'x':.., 'y':..}, ..]
+        # We use the signal_present image for selection
+        selected_coords = select_inserts_interactive(sp, n_inserts=2)
+        
+        config = []
+        # We'll assign the HUs and radius to the selected coordinates in order
+        # Default values from create_synthetic_data
+        default_hus = [110, 120]
+        radius = 10
+        
+        for idx, coord in enumerate(selected_coords):
+            # If user selects more than we have HUs for, just cycle or use last? 
+            # The demo asks for 2 inserts, so we should be fine.
+            hu = default_hus[idx] if idx < len(default_hus) else default_hus[-1]
+            
+            config.append({
+                'x': coord['x'],
+                'y': coord['y'],
+                'r': radius,
+                'HU': hu
+            })
+            
+        print("Interactive config selection complete.")
+        
+    else:
+        print("Running LCD analysis with programmatic custom configuration...")
+        config = initial_config
+
+    print("Configuration to be used:")
+    for c in config:
+        print(c)
+
     observers = ['LG_CHO_2D']
 
     # Pass config as ground_truth argument

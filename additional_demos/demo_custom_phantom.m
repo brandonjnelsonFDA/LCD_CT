@@ -3,6 +3,15 @@
 
 clear; clc; close all;
 
+% Add src to path
+this_dir = fileparts(mfilename('fullpath'));
+src_dir = fullfile(this_dir, '..', 'src', 'lcdct');
+if exist(src_dir, 'dir')
+    addpath(genpath(src_dir));
+else
+    warning('Could not find src/lcdct directory. Please ensure paths are set correctly.');
+end
+
 % 1. Create Synthetic Data (similar to other demos)
 % For this demo we create a simple phantom with known inserts
 sz = [100, 100, 10];
@@ -40,24 +49,42 @@ signal_absent = background + randn(sz) * 5;
 % Instead of relying on automatic detection or hardcoded MITA parameters,
 % we define the insert locations manually.
 
-% Option A: Programmatic definition
-custom_config.x = centers_x;
-custom_config.y = centers_y;
-custom_config.r = radius; % Scalar (same for all) or vector
-custom_config.HU = insert_hu;
+% option to set interactive mode from outside:
+% interactive_mode = true; demo_custom_phantom
+if ~exist('interactive_mode', 'var')
+    interactive_mode = false;
+end
 
-disp('Running LCD analysis with programmatic custom configuration...');
-observers = {'LG_CHO_2D'};
-results = measure_LCD(signal_present, signal_absent, custom_config, observers);
-
-disp('Results (Programmatic):');
-disp(results);
-
-% Option B: Interactive Selection (Commented out for automated testing)
-% disp('Select 2 inserts interactively...');
-% interactive_coords = select_inserts_interactive(signal_present, 2, 'my_coords.mat');
-% interactive_config = interactive_coords;
-% interactive_config.r = 10; % Radius needs to be known/set
-% interactive_config.HU = [0, 0]; % HU optional
-% results_interactive = measure_LCD(signal_present, signal_absent, interactive_config, observers);
-% disp(results_interactive);
+if ~interactive_mode
+    % Option A: Programmatic definition
+    custom_config.x = centers_x;
+    custom_config.y = centers_y;
+    custom_config.r = radius; % Scalar (same for all) or vector
+    custom_config.HU = insert_hu;
+    
+    disp('Running LCD analysis with programmatic custom configuration...');
+    observers = {'LG_CHO_2D'};
+    results = measure_LCD(signal_present, signal_absent, custom_config, observers);
+    
+    disp('Results (Programmatic):');
+    disp(results);
+else
+    % Option B: Interactive Selection
+    disp('Running in INTERACTIVE mode...');
+    disp('Select 2 inserts interactively...');
+    
+    interactive_coords = select_inserts_interactive(signal_present, 2);
+    
+    % Construct config
+    % interactive_coords contains x and y vectors
+    interactive_config.x = interactive_coords.x;
+    interactive_config.y = interactive_coords.y;
+    interactive_config.r = radius; 
+    interactive_config.HU = insert_hu; 
+    
+    observers = {'LG_CHO_2D'};
+    results_interactive = measure_LCD(signal_present, signal_absent, interactive_config, observers);
+    
+    disp('Results (Interactive):');
+    disp(results_interactive);
+end
