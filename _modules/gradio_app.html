@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>gradio_app &#8212; LCD for CT Toolbox 0.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=686e5160" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=d45e8c67"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for gradio_app</h1><div class="highlight"><pre>
+<span></span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">gradio</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gr</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">PIL</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span><span class="p">,</span> <span class="n">ImageDraw</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">skimage.feature</span><span class="w"> </span><span class="kn">import</span> <span class="n">canny</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skimage.filters</span><span class="w"> </span><span class="kn">import</span> <span class="n">threshold_otsu</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skimage.measure</span><span class="w"> </span><span class="kn">import</span> <span class="n">label</span><span class="p">,</span> <span class="n">regionprops</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skimage.transform</span><span class="w"> </span><span class="kn">import</span> <span class="n">hough_circle</span><span class="p">,</span> <span class="n">hough_circle_peaks</span>
+
+<span class="c1"># Add src to path robustly</span>
+<span class="n">current_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span>
+<span class="n">src_path</span> <span class="o">=</span> <span class="n">current_dir</span> <span class="o">/</span> <span class="s1">&#39;src&#39;</span>
+
+<span class="c1"># Check if src is already in path to avoid duplicates</span>
+<span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">src_path</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">path</span> <span class="ow">and</span> <span class="n">src_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">src_path</span><span class="p">))</span>
+
+<span class="c1"># Also ensure current dir is in path for local modules if needed</span>
+<span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">current_dir</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="p">:</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">current_dir</span><span class="p">))</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">lcdct.LCD</span><span class="w"> </span><span class="kn">import</span> <span class="n">measure_LCD</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="c1"># Final fallback if direct import fails</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">src_path</span><span class="p">))</span> 
+        <span class="kn">from</span><span class="w"> </span><span class="nn">lcdct.LCD</span><span class="w"> </span><span class="kn">import</span> <span class="n">measure_LCD</span>
+    <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CRITICAL: Could not import lcdct.LCD. Path: </span><span class="si">{</span><span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">. Error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">measure_LCD</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">SimpleITK</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sitk</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">sitk</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="c1"># Global or Session State helper functions</span>
+<div class="viewcode-block" id="generate_synthetic_data">
+<a class="viewcode-back" href="../api.html#gradio_app.generate_synthetic_data">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_synthetic_data</span><span class="p">(</span><span class="n">sz</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">)):</span>
+    <span class="n">background</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">sz</span><span class="p">)</span> <span class="o">+</span> <span class="mi">100</span>
+    <span class="n">inserts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">sz</span><span class="p">)</span>
+    <span class="n">centers</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">50</span><span class="p">),</span> <span class="p">(</span><span class="mi">70</span><span class="p">,</span> <span class="mi">50</span><span class="p">)]</span> <span class="c1"># (x, y)</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">insert_hus</span> <span class="o">=</span> <span class="p">[</span><span class="mi">110</span><span class="p">,</span> <span class="mi">120</span><span class="p">]</span>
+    
+    <span class="n">y_grid</span><span class="p">,</span> <span class="n">x_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ogrid</span><span class="p">[:</span><span class="n">sz</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="p">:</span><span class="n">sz</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span>
+    
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">cx</span><span class="p">,</span> <span class="n">cy</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">centers</span><span class="p">):</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">((</span><span class="n">x_grid</span> <span class="o">-</span> <span class="n">cx</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">y_grid</span> <span class="o">-</span> <span class="n">cy</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">radius</span><span class="o">**</span><span class="mi">2</span>
+        <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">sz</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">inserts</span><span class="p">[</span><span class="n">z</span><span class="p">][</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">insert_hus</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">-</span> <span class="mi">100</span>
+    
+    <span class="n">sp_data</span> <span class="o">=</span> <span class="n">background</span> <span class="o">+</span> <span class="n">inserts</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="o">*</span><span class="n">sz</span><span class="p">)</span> <span class="o">*</span> <span class="mi">5</span>
+    <span class="n">sa_data</span> <span class="o">=</span> <span class="n">background</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="o">*</span><span class="n">sz</span><span class="p">)</span> <span class="o">*</span> <span class="mi">5</span>
+    <span class="k">return</span> <span class="n">sp_data</span><span class="p">,</span> <span class="n">sa_data</span></div>
+
+
+<div class="viewcode-block" id="load_data_from_files">
+<a class="viewcode-back" href="../api.html#gradio_app.load_data_from_files">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_data_from_files</span><span class="p">(</span><span class="n">files</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">files</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">sitk</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">&quot;SimpleITK not installed.&quot;</span><span class="p">)</span>
+        
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Sort files by name to ensure correct sequence</span>
+        <span class="c1"># files is a list of file paths (temp paths from Gradio)</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+        
+        <span class="c1"># Check extensions</span>
+        <span class="n">exts</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">f</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">]</span>
+        
+        <span class="k">if</span> <span class="s1">&#39;.mhd&#39;</span> <span class="ow">in</span> <span class="n">exts</span><span class="p">:</span>
+            <span class="c1"># Assume mhd/raw pair. Load the mhd</span>
+            <span class="n">mhd_file</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.mhd&#39;</span><span class="p">)][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">sitk</span><span class="o">.</span><span class="n">ReadImage</span><span class="p">(</span><span class="n">mhd_file</span><span class="p">)</span>
+            <span class="n">arr</span> <span class="o">=</span> <span class="n">sitk</span><span class="o">.</span><span class="n">GetArrayFromImage</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">arr</span>
+            
+        <span class="k">elif</span> <span class="s1">&#39;.npy&#39;</span> <span class="ow">in</span> <span class="n">exts</span><span class="p">:</span>
+            <span class="c1"># Single NPY file</span>
+            <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">arr</span>
+            
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Assume DICOM Series or image stack</span>
+            <span class="c1"># sitk.ImageSeriesReader expects filenames.</span>
+            <span class="c1"># Gradio provides full paths.</span>
+            <span class="n">reader</span> <span class="o">=</span> <span class="n">sitk</span><span class="o">.</span><span class="n">ImageSeriesReader</span><span class="p">()</span>
+            <span class="n">reader</span><span class="o">.</span><span class="n">SetFileNames</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">Execute</span><span class="p">()</span>
+            <span class="n">arr</span> <span class="o">=</span> <span class="n">sitk</span><span class="o">.</span><span class="n">GetArrayFromImage</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">arr</span>
+            
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error loading files: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="draw_overlays">
+<a class="viewcode-back" href="../api.html#gradio_app.draw_overlays">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">draw_overlays</span><span class="p">(</span><span class="n">img_arr</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="p">(</span><span class="mi">255</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    img_arr: 2D numpy array (normalized 0-255 uint8)</span>
+<span class="sd">    centers: list of dict {&#39;x&#39;, &#39;y&#39;, &#39;r&#39;}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Convert to RGB for colored overlays</span>
+    <span class="k">if</span> <span class="n">img_arr</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">img_rgb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">img_arr</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">img_rgb</span> <span class="o">=</span> <span class="n">img_arr</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        
+    <span class="n">pil_img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">img_rgb</span><span class="p">)</span>
+    <span class="n">draw</span> <span class="o">=</span> <span class="n">ImageDraw</span><span class="o">.</span><span class="n">Draw</span><span class="p">(</span><span class="n">pil_img</span><span class="p">)</span>
+    
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">centers</span><span class="p">:</span>
+        <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">radius</span><span class="p">)</span>
+        <span class="c1"># Draw crosshair</span>
+        <span class="n">draw</span><span class="o">.</span><span class="n">line</span><span class="p">([(</span><span class="n">cx</span> <span class="o">-</span> <span class="mi">5</span><span class="p">,</span> <span class="n">cy</span><span class="p">),</span> <span class="p">(</span><span class="n">cx</span> <span class="o">+</span> <span class="mi">5</span><span class="p">,</span> <span class="n">cy</span><span class="p">)],</span> <span class="n">fill</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">draw</span><span class="o">.</span><span class="n">line</span><span class="p">([(</span><span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">-</span> <span class="mi">5</span><span class="p">),</span> <span class="p">(</span><span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">+</span> <span class="mi">5</span><span class="p">)],</span> <span class="n">fill</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># Draw circle</span>
+        <span class="n">draw</span><span class="o">.</span><span class="n">ellipse</span><span class="p">([(</span><span class="n">cx</span> <span class="o">-</span> <span class="n">r</span><span class="p">,</span> <span class="n">cy</span> <span class="o">-</span> <span class="n">r</span><span class="p">),</span> <span class="p">(</span><span class="n">cx</span> <span class="o">+</span> <span class="n">r</span><span class="p">,</span> <span class="n">cy</span> <span class="o">+</span> <span class="n">r</span><span class="p">)],</span> <span class="n">outline</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pil_img</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="normalize_for_display">
+<a class="viewcode-back" href="../api.html#gradio_app.normalize_for_display">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">normalize_for_display</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="p">):</span>
+    <span class="n">clipped</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="p">)</span>
+    <span class="n">norm</span> <span class="o">=</span> <span class="p">(</span><span class="n">clipped</span> <span class="o">-</span> <span class="n">vmin</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">vmax</span> <span class="o">-</span> <span class="n">vmin</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">norm</span> <span class="o">*</span> <span class="mi">255</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="create_app">
+<a class="viewcode-back" href="../api.html#gradio_app.create_app">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_app</span><span class="p">():</span>
+    <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Blocks</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;LCD CT Analysis Tool&quot;</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="n">gr</span><span class="o">.</span><span class="n">themes</span><span class="o">.</span><span class="n">Default</span><span class="p">(</span><span class="n">spacing_size</span><span class="o">=</span><span class="s2">&quot;sm&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">demo</span><span class="p">:</span>
+        <span class="n">gr</span><span class="o">.</span><span class="n">Markdown</span><span class="p">(</span><span class="s2">&quot;# LCD CT Analysis Tool&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># State variables</span>
+        <span class="n">sp_state</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="c1"># (N, Y, X)</span>
+        <span class="n">sa_state</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="c1"># (N, Y, X)</span>
+        <span class="n">centers_state</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">State</span><span class="p">([])</span> <span class="c1"># List of dicts</span>
+        <span class="n">slice_idx_state</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> 
+        <span class="n">view_mode_state</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="s2">&quot;slice&quot;</span><span class="p">)</span> <span class="c1"># &quot;slice&quot; or &quot;average&quot;</span>
+        
+        <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Row</span><span class="p">():</span>
+            <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">min_width</span><span class="o">=</span><span class="mi">300</span><span class="p">):</span>
+                <span class="n">gr</span><span class="o">.</span><span class="n">Markdown</span><span class="p">(</span><span class="s2">&quot;### Data &amp; Config&quot;</span><span class="p">)</span>
+                
+                <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Tab</span><span class="p">(</span><span class="s2">&quot;Synthetic&quot;</span><span class="p">):</span>
+                    <span class="n">load_synth_btn</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="s2">&quot;Load Synthetic Data&quot;</span><span class="p">)</span>
+                
+                <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Tab</span><span class="p">(</span><span class="s2">&quot;Upload&quot;</span><span class="p">):</span>
+                    <span class="n">sp_files</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Signal Present (DICOM/MHD/NPY)&quot;</span><span class="p">,</span> <span class="n">file_count</span><span class="o">=</span><span class="s2">&quot;multiple&quot;</span><span class="p">)</span>
+                    <span class="n">sa_files</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Signal Absent (DICOM/MHD/NPY)&quot;</span><span class="p">,</span> <span class="n">file_count</span><span class="o">=</span><span class="s2">&quot;multiple&quot;</span><span class="p">)</span>
+                    <span class="n">load_upload_btn</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="s2">&quot;Load Uploaded Data&quot;</span><span class="p">)</span>
+                
+                <span class="n">gr</span><span class="o">.</span><span class="n">Markdown</span><span class="p">(</span><span class="s2">&quot;---&quot;</span><span class="p">)</span>
+                <span class="c1"># Config</span>
+                <span class="n">radius_input</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Number</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Insert Radius (px)&quot;</span><span class="p">)</span>
+                <span class="n">hu_input</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Number</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Insert HU&quot;</span><span class="p">)</span>
+                <span class="n">auto_size_btn</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="s2">&quot;Auto-size Radius &amp; Centers&quot;</span><span class="p">)</span>
+                
+                <span class="c1"># Window/Level</span>
+                <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Row</span><span class="p">():</span>
+                    <span class="n">window_input</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Number</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Window&quot;</span><span class="p">)</span>
+                    <span class="n">level_input</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Number</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Level&quot;</span><span class="p">)</span>
+                
+                <span class="n">clear_btn</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="s2">&quot;Clear Centers&quot;</span><span class="p">)</span>
+                <span class="n">analyze_btn</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="s2">&quot;Run Analysis&quot;</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="s2">&quot;primary&quot;</span><span class="p">)</span>
+                <span class="n">status_box</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Textbox</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;Ready&quot;</span><span class="p">,</span> <span class="n">interactive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                
+            <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
+                <span class="n">gr</span><span class="o">.</span><span class="n">Markdown</span><span class="p">(</span><span class="s2">&quot;### Viewer&quot;</span><span class="p">)</span>
+                <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Row</span><span class="p">(</span><span class="n">equal_height</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                    <span class="n">slider</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Slider</span><span class="p">(</span><span class="n">minimum</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">maximum</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Slice Index&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+                    <span class="n">toggle_view_btn</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span><span class="s2">&quot;View Stack Average&quot;</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="s2">&quot;secondary&quot;</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                
+                <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Row</span><span class="p">():</span>
+                    <span class="c1"># Increased height for better viewing</span>
+                    <span class="n">sp_image</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Signal Present (Click to Select)&quot;</span><span class="p">,</span> <span class="n">interactive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;numpy&quot;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span>
+                    <span class="n">sa_image</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Signal Absent&quot;</span><span class="p">,</span> <span class="n">interactive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;numpy&quot;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span>
+        
+        <span class="k">with</span> <span class="n">gr</span><span class="o">.</span><span class="n">Row</span><span class="p">():</span>
+            <span class="n">results_df</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Dataframe</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Results&quot;</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;insert_idx&quot;</span><span class="p">,</span> <span class="s2">&quot;insert_HU&quot;</span><span class="p">,</span> <span class="s2">&quot;auc&quot;</span><span class="p">])</span>
+            <span class="n">results_plot</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">Plot</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;AUC Summary&quot;</span><span class="p">)</span>
+            
+        <span class="n">download_btn</span> <span class="o">=</span> <span class="n">gr</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;Download CSV&quot;</span><span class="p">)</span>
+
+        <span class="c1"># --- Functions ---</span>
+        
+        <span class="k">def</span><span class="w"> </span><span class="nf">load_synthetic</span><span class="p">():</span>
+            <span class="n">sp</span><span class="p">,</span> <span class="n">sa</span> <span class="o">=</span> <span class="n">generate_synthetic_data</span><span class="p">()</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Synthetic Data Loaded&quot;</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="n">sp</span><span class="p">,</span> 
+                <span class="n">sa</span><span class="p">,</span> 
+                <span class="p">[],</span> <span class="c1"># centers</span>
+                <span class="n">sp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="c1"># slice</span>
+                <span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">maximum</span><span class="o">=</span><span class="n">sp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">sp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">//</span><span class="mi">2</span><span class="p">),</span> <span class="c1"># slider</span>
+                <span class="n">msg</span>
+            <span class="p">)</span>
+            
+        <span class="k">def</span><span class="w"> </span><span class="nf">load_uploaded</span><span class="p">(</span><span class="n">sp_files_list</span><span class="p">,</span> <span class="n">sa_files_list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">sp_files_list</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">[],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(),</span> <span class="s2">&quot;No SP files provided.&quot;</span>
+            
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># Load SP</span>
+                <span class="n">sp</span> <span class="o">=</span> <span class="n">load_data_from_files</span><span class="p">(</span><span class="n">sp_files_list</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">sp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">[],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(),</span> <span class="s2">&quot;Failed to load SP files.&quot;</span>
+                <span class="k">if</span> <span class="n">sp</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span> <span class="n">sp</span> <span class="o">=</span> <span class="n">sp</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+                
+                <span class="c1"># Load SA</span>
+                <span class="n">sa</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="n">sa_files_list</span><span class="p">:</span>
+                    <span class="n">sa</span> <span class="o">=</span> <span class="n">load_data_from_files</span><span class="p">(</span><span class="n">sa_files_list</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">sa</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">sa</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span> <span class="n">sa</span> <span class="o">=</span> <span class="n">sa</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+                
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Loaded SP.&quot;</span> <span class="o">+</span> <span class="p">(</span><span class="s2">&quot; Loaded SA.&quot;</span> <span class="k">if</span> <span class="n">sa</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">&quot; Warning: No SA loaded.&quot;</span><span class="p">)</span>
+                
+                <span class="k">return</span> <span class="p">(</span>
+                    <span class="n">sp</span><span class="p">,</span>
+                    <span class="n">sa</span><span class="p">,</span>
+                    <span class="p">[],</span>
+                    <span class="n">sp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span>
+                    <span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">maximum</span><span class="o">=</span><span class="n">sp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">sp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">//</span><span class="mi">2</span><span class="p">),</span>
+                    <span class="n">msg</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">[],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;Error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">toggle_view_mode</span><span class="p">(</span><span class="n">current_mode</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">current_mode</span> <span class="o">==</span> <span class="s2">&quot;slice&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s2">&quot;average&quot;</span><span class="p">,</span> <span class="s2">&quot;View Slices&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s2">&quot;slice&quot;</span><span class="p">,</span> <span class="s2">&quot;View Stack Average&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">update_view</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">sa</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="n">window</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">view_mode</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">sp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+            
+            <span class="c1"># Use Window/Level to calc vmin/vmax</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">w</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>
+                <span class="n">l</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">w</span> <span class="o">=</span> <span class="mi">400</span>
+                <span class="n">l</span> <span class="o">=</span> <span class="mi">40</span>
+            
+            <span class="n">vmin</span> <span class="o">=</span> <span class="n">l</span> <span class="o">-</span> <span class="n">w</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">vmax</span> <span class="o">=</span> <span class="n">l</span> <span class="o">+</span> <span class="n">w</span> <span class="o">/</span> <span class="mi">2</span>
+            
+            <span class="c1"># Determine image content based on view_mode</span>
+            <span class="k">if</span> <span class="n">view_mode</span> <span class="o">==</span> <span class="s2">&quot;average&quot;</span><span class="p">:</span>
+                <span class="n">img_sp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">sa</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                     <span class="n">img_sa</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">sa</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                     <span class="n">img_sa</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">img_sp</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Clamp index</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">idx</span><span class="p">),</span> <span class="n">sp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+                <span class="n">img_sp</span> <span class="o">=</span> <span class="n">sp</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                <span class="n">img_sa</span> <span class="o">=</span> <span class="n">sa</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="k">if</span> <span class="n">sa</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">img_sp</span><span class="p">)</span>
+            
+            <span class="c1"># Normalize</span>
+            <span class="n">disp_sp</span> <span class="o">=</span> <span class="n">normalize_for_display</span><span class="p">(</span><span class="n">img_sp</span><span class="p">,</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="p">)</span>
+            <span class="n">disp_sa</span> <span class="o">=</span> <span class="n">normalize_for_display</span><span class="p">(</span><span class="n">img_sa</span><span class="p">,</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="p">)</span>
+            
+            <span class="c1"># Overlays on SP</span>
+            <span class="n">disp_sp_marked</span> <span class="o">=</span> <span class="n">draw_overlays</span><span class="p">(</span><span class="n">disp_sp</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="p">(</span><span class="mi">255</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+            <span class="c1"># Overlays on SA</span>
+            <span class="n">disp_sa_marked</span> <span class="o">=</span> <span class="n">draw_overlays</span><span class="p">(</span><span class="n">disp_sa</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">))</span>
+            
+            <span class="k">return</span> <span class="n">disp_sp_marked</span><span class="p">,</span> <span class="n">disp_sa_marked</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">on_click</span><span class="p">(</span><span class="n">evt</span><span class="p">:</span> <span class="n">gr</span><span class="o">.</span><span class="n">SelectData</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="n">radius</span><span class="p">):</span>
+            <span class="c1"># Append new center</span>
+            <span class="n">new_center</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">evt</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">evt</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;r&#39;</span><span class="p">:</span> <span class="n">radius</span><span class="p">}</span>
+            <span class="c1"># Avoid dupes logic could go here</span>
+            <span class="n">updated_centers</span> <span class="o">=</span> <span class="n">centers</span> <span class="o">+</span> <span class="p">[</span><span class="n">new_center</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">updated_centers</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">clear_centers</span><span class="p">():</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">auto_size</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="n">current_radius</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">sp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">centers</span><span class="p">,</span> <span class="n">current_radius</span><span class="p">,</span> <span class="s2">&quot;No data loaded.&quot;</span>
+            
+            <span class="c1"># Mean intensity projection (Already used for calculation logic, regardless of view)</span>
+            <span class="n">img_avg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">img_norm</span> <span class="o">=</span> <span class="p">(</span><span class="n">img_avg</span> <span class="o">-</span> <span class="n">img_avg</span><span class="o">.</span><span class="n">min</span><span class="p">())</span> <span class="o">/</span> <span class="p">(</span><span class="n">img_avg</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">img_avg</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+            
+            <span class="n">new_centers</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">updates_count</span> <span class="o">=</span> <span class="mi">0</span>
+            
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">centers</span><span class="p">:</span>
+                <span class="c1"># Global search</span>
+                <span class="n">edges</span> <span class="o">=</span> <span class="n">canny</span><span class="p">(</span><span class="n">img_norm</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+                <span class="n">hough_radii</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">hough_res</span> <span class="o">=</span> <span class="n">hough_circle</span><span class="p">(</span><span class="n">edges</span><span class="p">,</span> <span class="n">hough_radii</span><span class="p">)</span>
+                <span class="n">accums</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span><span class="p">,</span> <span class="n">radii</span> <span class="o">=</span> <span class="n">hough_circle_peaks</span><span class="p">(</span><span class="n">hough_res</span><span class="p">,</span> <span class="n">hough_radii</span><span class="p">,</span> <span class="n">total_num_peaks</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">radii</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">r</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">radii</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="c1"># Assuming cx, cy are x, y coordinates</span>
+                    <span class="n">new_centers</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">cx</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">cy</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;r&#39;</span><span class="p">:</span> <span class="n">r</span><span class="p">})</span>
+                    <span class="k">return</span> <span class="n">new_centers</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Found global circle at (</span><span class="si">{</span><span class="n">cx</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">cy</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">) r=</span><span class="si">{</span><span class="n">r</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">centers</span><span class="p">,</span> <span class="n">current_radius</span><span class="p">,</span> <span class="s2">&quot;Global search failed.&quot;</span>
+            
+            <span class="c1"># Local refinement</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">centers</span><span class="p">:</span>
+                <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]</span>
+                <span class="n">cr</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">current_radius</span><span class="p">)</span>
+                
+                <span class="c1"># Search margin</span>
+                <span class="n">search_margin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">cr</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">20</span><span class="p">))</span>
+                <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span> <span class="o">=</span> <span class="n">img_avg</span><span class="o">.</span><span class="n">shape</span>
+                
+                <span class="n">y_min</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">cy</span><span class="p">)</span> <span class="o">-</span> <span class="n">search_margin</span><span class="p">)</span>
+                <span class="n">y_max</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">cy</span><span class="p">)</span> <span class="o">+</span> <span class="n">search_margin</span><span class="p">)</span>
+                <span class="n">x_min</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">cx</span><span class="p">)</span> <span class="o">-</span> <span class="n">search_margin</span><span class="p">)</span>
+                <span class="n">x_max</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">cols</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">cx</span><span class="p">)</span> <span class="o">+</span> <span class="n">search_margin</span><span class="p">)</span>
+                
+                <span class="n">roi</span> <span class="o">=</span> <span class="n">img_norm</span><span class="p">[</span><span class="n">y_min</span><span class="p">:</span><span class="n">y_max</span><span class="p">,</span> <span class="n">x_min</span><span class="p">:</span><span class="n">x_max</span><span class="p">]</span>
+                
+                <span class="k">if</span> <span class="n">roi</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">new_centers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                    
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">thresh</span> <span class="o">=</span> <span class="n">threshold_otsu</span><span class="p">(</span><span class="n">roi</span><span class="p">)</span>
+                    <span class="n">mask</span> <span class="o">=</span> <span class="n">roi</span> <span class="o">&gt;</span> <span class="n">thresh</span>
+                    <span class="n">lbl</span> <span class="o">=</span> <span class="n">label</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+                    <span class="n">regions</span> <span class="o">=</span> <span class="n">regionprops</span><span class="p">(</span><span class="n">lbl</span><span class="p">)</span>
+                    
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">regions</span><span class="p">:</span>
+                        <span class="n">new_centers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+                        <span class="k">continue</span>
+                        
+                    <span class="n">roi_cy</span><span class="p">,</span> <span class="n">roi_cx</span> <span class="o">=</span> <span class="n">roi</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">roi</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span>
+                    <span class="n">best_region</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="n">min_dist</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)</span>
+                    
+                    <span class="k">for</span> <span class="n">r_prop</span> <span class="ow">in</span> <span class="n">regions</span><span class="p">:</span>
+                        <span class="n">rc_y</span><span class="p">,</span> <span class="n">rc_x</span> <span class="o">=</span> <span class="n">r_prop</span><span class="o">.</span><span class="n">centroid</span>
+                        <span class="n">dist</span> <span class="o">=</span> <span class="p">(</span><span class="n">rc_x</span> <span class="o">-</span> <span class="n">roi_cx</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">rc_y</span> <span class="o">-</span> <span class="n">roi_cy</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
+                        <span class="k">if</span> <span class="n">dist</span> <span class="o">&lt;</span> <span class="n">min_dist</span><span class="p">:</span>
+                            <span class="n">min_dist</span> <span class="o">=</span> <span class="n">dist</span>
+                            <span class="n">best_region</span> <span class="o">=</span> <span class="n">r_prop</span>
+                            
+                    <span class="k">if</span> <span class="n">best_region</span><span class="p">:</span>
+                        <span class="n">l_cy</span><span class="p">,</span> <span class="n">l_cx</span> <span class="o">=</span> <span class="n">best_region</span><span class="o">.</span><span class="n">centroid</span>
+                        <span class="n">best_cx</span> <span class="o">=</span> <span class="n">l_cx</span> <span class="o">+</span> <span class="n">x_min</span>
+                        <span class="n">best_cy</span> <span class="o">=</span> <span class="n">l_cy</span> <span class="o">+</span> <span class="n">y_min</span>
+                        <span class="n">best_r</span> <span class="o">=</span> <span class="n">best_region</span><span class="o">.</span><span class="n">equivalent_diameter_area</span> <span class="o">/</span> <span class="mi">2</span>
+                        
+                        <span class="n">new_centers</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">best_cx</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">best_cy</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">:</span> <span class="n">best_r</span><span class="p">})</span>
+                        <span class="n">updates_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">new_centers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error refining </span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">new_centers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+            <span class="c1"># Update radius to mean of new centers</span>
+            <span class="k">if</span> <span class="n">new_centers</span><span class="p">:</span>
+                <span class="n">avg_r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="s1">&#39;r&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">new_centers</span><span class="p">])</span>
+                <span class="k">return</span> <span class="n">new_centers</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">avg_r</span><span class="p">)),</span> <span class="sa">f</span><span class="s2">&quot;Refined </span><span class="si">{</span><span class="n">updates_count</span><span class="si">}</span><span class="s2"> centers.&quot;</span>
+            
+            <span class="k">return</span> <span class="n">centers</span><span class="p">,</span> <span class="n">current_radius</span><span class="p">,</span> <span class="s2">&quot;No updates.&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">run_analysis</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">sa</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="n">hu</span><span class="p">,</span> <span class="n">radius</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">sp</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">sa</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">centers</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+            
+            <span class="n">config</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">centers</span><span class="p">:</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;r&#39;</span><span class="p">:</span> <span class="n">c</span><span class="p">[</span><span class="s1">&#39;r&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;HU&#39;</span><span class="p">:</span> <span class="n">hu</span>
+                <span class="p">})</span>
+            
+            <span class="n">observers</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;LG_CHO_2D&#39;</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">measure_LCD</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">sa</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">observers</span><span class="p">)</span>
+                
+                <span class="c1"># Plot</span>
+                <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">res</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                    <span class="n">res</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;insert_idx&#39;</span><span class="p">)[</span><span class="s1">&#39;auc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s1">&#39;bar&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;AUC by Insert Index&quot;</span><span class="p">)</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;AUC&quot;</span><span class="p">)</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+                
+                <span class="c1"># Save CSV</span>
+                <span class="n">csv_path</span> <span class="o">=</span> <span class="s2">&quot;results.csv&quot;</span>
+                <span class="n">res</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">csv_path</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                
+                <span class="k">return</span> <span class="n">res</span><span class="p">,</span> <span class="n">fig</span><span class="p">,</span> <span class="n">csv_path</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s1">&#39;Error&#39;</span><span class="p">:</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)]}),</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+
+        <span class="c1"># --- Wiring ---</span>
+        
+        <span class="k">def</span><span class="w"> </span><span class="nf">load_defaults</span><span class="p">():</span>
+            <span class="n">base_path</span> <span class="o">=</span> <span class="n">current_dir</span> <span class="o">/</span> <span class="s1">&#39;data&#39;</span> <span class="o">/</span> <span class="s1">&#39;small_dataset&#39;</span> <span class="o">/</span> <span class="s1">&#39;fbp&#39;</span> <span class="o">/</span> <span class="s1">&#39;dose_100&#39;</span>
+            <span class="n">sp_path</span> <span class="o">=</span> <span class="n">base_path</span> <span class="o">/</span> <span class="s1">&#39;signal_present&#39;</span> <span class="o">/</span> <span class="s1">&#39;signal_present.mhd&#39;</span>
+            <span class="n">sa_path</span> <span class="o">=</span> <span class="n">base_path</span> <span class="o">/</span> <span class="s1">&#39;signal_absent&#39;</span> <span class="o">/</span> <span class="s1">&#39;signal_absent.mhd&#39;</span>
+            
+            <span class="n">sp</span><span class="p">,</span> <span class="n">sa</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Default data not found.&quot;</span>
+            
+            <span class="k">if</span> <span class="n">sp_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">img_sp</span> <span class="o">=</span> <span class="n">sitk</span><span class="o">.</span><span class="n">ReadImage</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">sp_path</span><span class="p">))</span>
+                    <span class="n">sp</span> <span class="o">=</span> <span class="n">sitk</span><span class="o">.</span><span class="n">GetArrayFromImage</span><span class="p">(</span><span class="n">img_sp</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load default SP: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">sa_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">img_sa</span> <span class="o">=</span> <span class="n">sitk</span><span class="o">.</span><span class="n">ReadImage</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">sa_path</span><span class="p">))</span>
+                    <span class="n">sa</span> <span class="o">=</span> <span class="n">sitk</span><span class="o">.</span><span class="n">GetArrayFromImage</span><span class="p">(</span><span class="n">img_sa</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load default SA: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                     
+            <span class="k">if</span> <span class="n">sp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Default Data Loaded&quot;</span>
+                <span class="k">return</span> <span class="p">(</span>
+                    <span class="n">sp</span><span class="p">,</span> 
+                    <span class="n">sa</span><span class="p">,</span> 
+                    <span class="p">[],</span> <span class="c1"># centers</span>
+                    <span class="n">sp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="c1"># slice</span>
+                    <span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">maximum</span><span class="o">=</span><span class="n">sp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">sp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">//</span><span class="mi">2</span><span class="p">),</span> <span class="c1"># slider</span>
+                    <span class="n">msg</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                 <span class="c1"># Fallback to no data or synthetic if requested, but for now just empty</span>
+                 <span class="k">return</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">[],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">(),</span> <span class="s2">&quot;Default data not found.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># --- Wiring ---</span>
+        
+        <span class="c1"># Load Defaults on Launch</span>
+        <span class="n">demo</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
+            <span class="n">load_defaults</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">slider</span><span class="p">,</span> <span class="n">status_box</span><span class="p">]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span>
+            <span class="n">update_view</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">window_input</span><span class="p">,</span> <span class="n">level_input</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">,</span> <span class="n">view_mode_state</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_image</span><span class="p">,</span> <span class="n">sa_image</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Load Synthetic</span>
+        <span class="n">load_synth_btn</span><span class="o">.</span><span class="n">click</span><span class="p">(</span>
+            <span class="n">load_synthetic</span><span class="p">,</span> 
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[],</span> 
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">slider</span><span class="p">,</span> <span class="n">status_box</span><span class="p">]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span>
+            <span class="n">update_view</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">window_input</span><span class="p">,</span> <span class="n">level_input</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">,</span> <span class="n">view_mode_state</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_image</span><span class="p">,</span> <span class="n">sa_image</span><span class="p">]</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Load Uploaded</span>
+        <span class="n">load_upload_btn</span><span class="o">.</span><span class="n">click</span><span class="p">(</span>
+            <span class="n">load_uploaded</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_files</span><span class="p">,</span> <span class="n">sa_files</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">slider</span><span class="p">,</span> <span class="n">status_box</span><span class="p">]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span>
+            <span class="n">update_view</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">window_input</span><span class="p">,</span> <span class="n">level_input</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">,</span> <span class="n">view_mode_state</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_image</span><span class="p">,</span> <span class="n">sa_image</span><span class="p">]</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Toggle View Mode</span>
+        <span class="n">toggle_view_btn</span><span class="o">.</span><span class="n">click</span><span class="p">(</span>
+            <span class="n">toggle_view_mode</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">view_mode_state</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">view_mode_state</span><span class="p">,</span> <span class="n">toggle_view_btn</span><span class="p">]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span>
+             <span class="n">update_view</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">window_input</span><span class="p">,</span> <span class="n">level_input</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">,</span> <span class="n">view_mode_state</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_image</span><span class="p">,</span> <span class="n">sa_image</span><span class="p">]</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Slice Change</span>
+        <span class="n">slider</span><span class="o">.</span><span class="n">change</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">i</span><span class="p">:</span> <span class="n">i</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">slider</span><span class="p">],</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">slice_idx_state</span><span class="p">]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span>
+            <span class="n">update_view</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">window_input</span><span class="p">,</span> <span class="n">level_input</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">,</span> <span class="n">view_mode_state</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_image</span><span class="p">,</span> <span class="n">sa_image</span><span class="p">]</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Display settings change</span>
+        <span class="n">window_input</span><span class="o">.</span><span class="n">change</span><span class="p">(</span><span class="n">update_view</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">window_input</span><span class="p">,</span> <span class="n">level_input</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">,</span> <span class="n">view_mode_state</span><span class="p">],</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_image</span><span class="p">,</span> <span class="n">sa_image</span><span class="p">])</span>
+        <span class="n">level_input</span><span class="o">.</span><span class="n">change</span><span class="p">(</span><span class="n">update_view</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">window_input</span><span class="p">,</span> <span class="n">level_input</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">,</span> <span class="n">view_mode_state</span><span class="p">],</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_image</span><span class="p">,</span> <span class="n">sa_image</span><span class="p">])</span>
+        
+        <span class="c1"># Auto-Size</span>
+        <span class="n">auto_size_btn</span><span class="o">.</span><span class="n">click</span><span class="p">(</span>
+            <span class="n">auto_size</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">centers_state</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">,</span> <span class="n">status_box</span><span class="p">]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span>
+            <span class="n">update_view</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">window_input</span><span class="p">,</span> <span class="n">level_input</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">,</span> <span class="n">view_mode_state</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_image</span><span class="p">,</span> <span class="n">sa_image</span><span class="p">]</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Click</span>
+        <span class="n">sp_image</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+            <span class="n">on_click</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">centers_state</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">centers_state</span><span class="p">]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span>
+            <span class="n">update_view</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">window_input</span><span class="p">,</span> <span class="n">level_input</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">,</span> <span class="n">view_mode_state</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_image</span><span class="p">,</span> <span class="n">sa_image</span><span class="p">]</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Clear</span>
+        <span class="n">clear_btn</span><span class="o">.</span><span class="n">click</span><span class="p">(</span><span class="n">clear_centers</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">centers_state</span><span class="p">])</span><span class="o">.</span><span class="n">then</span><span class="p">(</span>
+            <span class="n">update_view</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">slice_idx_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">window_input</span><span class="p">,</span> <span class="n">level_input</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">,</span> <span class="n">view_mode_state</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_image</span><span class="p">,</span> <span class="n">sa_image</span><span class="p">]</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Analyze</span>
+        <span class="n">analyze_btn</span><span class="o">.</span><span class="n">click</span><span class="p">(</span>
+            <span class="n">run_analysis</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">sp_state</span><span class="p">,</span> <span class="n">sa_state</span><span class="p">,</span> <span class="n">centers_state</span><span class="p">,</span> <span class="n">hu_input</span><span class="p">,</span> <span class="n">radius_input</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">results_df</span><span class="p">,</span> <span class="n">results_plot</span><span class="p">,</span> <span class="n">download_btn</span><span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">demo</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">app</span> <span class="o">=</span> <span class="n">create_app</span><span class="p">()</span>
+    
+    <span class="c1"># Check if running on Hugging Face Spaces</span>
+    <span class="k">if</span> <span class="s2">&quot;SPACE_ID&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+        <span class="c1"># Hugging Face handles port (7860) and SSL automatically</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">launch</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Local execution: specifying port 7861 to avoid conflicts</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">launch</span><span class="p">(</span><span class="n">server_name</span><span class="o">=</span><span class="s2">&quot;0.0.0.0&quot;</span><span class="p">,</span> <span class="n">server_port</span><span class="o">=</span><span class="mi">7861</span><span class="p">,</span> <span class="n">share</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">LCD for CT Toolbox</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html#module-lcd_gui">GUI Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html#module-lcdct">MATLAB API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq.html">Frequently Asked Questions</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2023, Brandon Nelson, Rongping Zeng, Prabhat Kc.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.1.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

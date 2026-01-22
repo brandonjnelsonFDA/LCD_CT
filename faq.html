@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Frequently Asked Questions &#8212; LCD for CT Toolbox 0.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=686e5160" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=d45e8c67"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Contributing Guide" href="contributing.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="frequently-asked-questions">
+<h1>Frequently Asked Questions<a class="headerlink" href="#frequently-asked-questions" title="Link to this heading">¶</a></h1>
+<section id="errors-when-running-with-octave-for-the-first-time">
+<h2>1. errors when running with Octave for the first time<a class="headerlink" href="#errors-when-running-with-octave-for-the-first-time" title="Link to this heading">¶</a></h2>
+<p>Many linux distributions come with an older version of Octave (typically Octave 4.4) which are incompatible with newer libraries such as Image or tablicious which we use in this tool. If using an older version of Octave you might get error messages like the following:</p>
+<div class="highlight-octave notranslate"><div class="highlight"><pre><span></span><span class="n">demo_00_images_from_directory</span><span class="p">.</span><span class="n">m</span>
+<span class="nb">error</span><span class="p">:</span> <span class="n">package</span> <span class="n">tablicious</span> <span class="n">is</span> <span class="nb">not</span> <span class="n">installed</span>
+<span class="nb">error</span><span class="p">:</span> <span class="n">called</span> <span class="n">from</span>
+    <span class="n">load_packages</span> <span class="n">at</span> <span class="nb">line</span> <span class="mi">41</span> <span class="n">column</span> <span class="mi">7</span>
+    <span class="n">pkg</span> <span class="n">at</span> <span class="nb">line</span> <span class="mi">411</span> <span class="n">column</span> <span class="mi">7</span>
+    <span class="n">demo_images_from_directory</span> <span class="n">at</span> <span class="nb">line</span> <span class="mi">26</span> <span class="n">column</span> <span class="mi">4</span>
+    <span class="nb">test</span> <span class="n">at</span> <span class="nb">line</span> <span class="mi">9</span> <span class="n">column</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>A straightforward way to get a newer version of Octave is with Conda as recommended by the Octave site: <a class="reference external" href="https://wiki.octave.org/Octave_for_GNU/Linux">https://wiki.octave.org/Octave_for_GNU/Linux</a></p>
+<p>First in a shell terminal create an environment, install octave and a c++ compiler</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>create<span class="w"> </span>--name<span class="w"> </span>octave
+conda<span class="w"> </span>activate<span class="w"> </span>octave
+conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>octave
+conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>cxx-compiler
+</pre></div>
+</div>
+<p>Then in octave install the packages</p>
+<div class="highlight-octave notranslate"><div class="highlight"><pre><span></span><span class="n">octave</span><span class="p">:</span><span class="mi">1</span><span class="o">&gt;</span> <span class="n">pkg</span> <span class="n">install</span> <span class="o">-</span><span class="n">forge</span> <span class="nb">image</span>
+<span class="n">octave</span><span class="p">:</span><span class="mi">2</span><span class="o">&gt;</span> <span class="n">pkg</span> <span class="n">install</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="n">apjanke</span><span class="o">/</span><span class="n">octave</span><span class="o">-</span><span class="n">tablicious</span><span class="o">/</span><span class="n">releases</span><span class="o">/</span><span class="n">download</span><span class="o">/</span><span class="n">v0</span><span class="p">.</span><span class="mf">3.7</span><span class="o">/</span><span class="n">tablicious</span><span class="o">-</span><span class="mf">0.3</span><span class="p">.</span><span class="mf">7.</span><span class="nb">tar</span><span class="p">.</span><span class="n">gz</span>
+<span class="n">octave</span><span class="p">:</span><span class="mi">3</span><span class="o">&gt;</span> <span class="n">pkg</span> <span class="nb">load</span> <span class="nb">image</span> <span class="n">tablicious</span>
+</pre></div>
+</div>
+<p>Now retry rerunning the <cite>test.m</cite></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>octave<span class="w"> </span>test.m
+</pre></div>
+</div>
+</section>
+<section id="matlab-version-errors">
+<h2>2. Matlab version errors<a class="headerlink" href="#matlab-version-errors" title="Link to this heading">¶</a></h2>
+<p>Both of the error messages below indicate an imcompatible Matlab version (Release before 2016b). To avoid this error consider following the Octave install instructions above</p>
+<div class="highlight-octave notranslate"><div class="highlight"><pre><span></span>??? <span class="n">Error</span> <span class="n">using</span> <span class="o">==&gt;</span> <span class="nb">test</span> <span class="n">at</span> <span class="mi">10</span>
+<span class="n">Detected</span> <span class="nb">version</span> <span class="n">of</span> <span class="n">Matlab</span><span class="p">:</span> <span class="mi">2007</span><span class="n">b</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">2016</span><span class="n">b</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>or</p>
+<div class="highlight-octave notranslate"><div class="highlight"><pre><span></span>??? <span class="n">Error</span><span class="p">:</span> <span class="n">File</span><span class="p">:</span> <span class="o">~/</span><span class="n">LCD_CT</span><span class="o">/</span><span class="n">demo_01_singlerecon_LCD</span><span class="p">.</span><span class="n">m</span> <span class="n">Line</span><span class="p">:</span> <span class="mi">13</span> <span class="n">Column</span><span class="p">:</span> <span class="mi">14</span>
+<span class="n">The</span> <span class="nb">input</span> <span class="n">character</span> <span class="n">is</span> <span class="nb">not</span> <span class="n">valid</span> <span class="n">in</span> <span class="n">MATLAB</span> <span class="n">statements</span> <span class="nb">or</span> <span class="n">expressions</span><span class="p">.</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">LCD for CT Toolbox</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html#module-lcd_gui">GUI Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html#module-lcdct">MATLAB API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Frequently Asked Questions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#errors-when-running-with-octave-for-the-first-time">1. errors when running with Octave for the first time</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#matlab-version-errors">2. Matlab version errors</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="contributing.html" title="previous chapter">Contributing Guide</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2023, Brandon Nelson, Rongping Zeng, Prabhat Kc.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.1.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/faq.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

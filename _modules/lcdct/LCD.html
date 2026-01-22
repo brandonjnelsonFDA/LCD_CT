@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>lcdct.LCD &#8212; LCD for CT Toolbox 0.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../_static/basic.css?v=686e5160" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../_static/documentation_options.js?v=d45e8c67"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for lcdct.LCD</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Low Contrast Detectability (LCD)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">mode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">get_demo_truth_masks</span><span class="p">,</span> 
+    <span class="n">get_insert_radius</span><span class="p">,</span> 
+    <span class="n">get_roi_from_truth_mask</span><span class="p">,</span>
+    <span class="n">read_mhd</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.Observers</span><span class="w"> </span><span class="kn">import</span> <span class="n">LG_CHO</span><span class="p">,</span> <span class="n">DOG_CHO</span><span class="p">,</span> <span class="n">Gabor_CHO</span><span class="p">,</span> <span class="n">NPWE</span>
+
+<div class="viewcode-block" id="get_roi_from_manual_selection">
+<a class="viewcode-back" href="../../api.html#lcdct.LCD.get_roi_from_manual_selection">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_roi_from_manual_selection</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">x_center</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">y_center</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract a square region from the image centered on (x_center, y_center) with radius r (half-width).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        img: (N, Y, X) image stack.</span>
+<span class="sd">        x_center: Center x coordinate.</span>
+<span class="sd">        y_center: Center y coordinate.</span>
+<span class="sd">        r: Radius (half-width) of the crop.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        np.ndarray: Cropped image stack (N, 2*r, 2*r).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="n">x_min</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">x_center</span> <span class="o">-</span> <span class="n">r</span><span class="p">)</span>
+    <span class="n">x_max</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">cols</span><span class="p">,</span> <span class="n">x_center</span> <span class="o">+</span> <span class="n">r</span><span class="p">)</span>
+    <span class="n">y_min</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">y_center</span> <span class="o">-</span> <span class="n">r</span><span class="p">)</span>
+    <span class="n">y_max</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">y_center</span> <span class="o">+</span> <span class="n">r</span><span class="p">)</span>
+
+    <span class="c1"># Ensure square output (pad if near border? or just clip?)</span>
+    <span class="c1"># MATLAB get_ROI_from_manual_selection just slices.</span>
+    <span class="c1"># If near border, size might be smaller.</span>
+
+    <span class="k">return</span> <span class="n">img</span><span class="p">[:,</span> <span class="n">y_min</span><span class="p">:</span><span class="n">y_max</span><span class="p">,</span> <span class="n">x_min</span><span class="p">:</span><span class="n">x_max</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="measure_LCD">
+<a class="viewcode-back" href="../../api.html#lcdct.LCD.measure_LCD">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">measure_LCD</span><span class="p">(</span><span class="n">signal_present</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">signal_absent</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">ground_truth</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]],</span>
+                <span class="n">observers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">n_reader</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">pct_split</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">seed_split</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculates Low Contrast Detectability (LCD) metrics (AUC, SNR).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        signal_present: np.ndarray (N, Y, X) of signal present images.</span>
+<span class="sd">        signal_absent: np.ndarray (N, Y, X) of signal absent images.</span>
+<span class="sd">        ground_truth: np.ndarray (Y, X) ground truth image OR Path to mhd file OR List of dicts (custom config).</span>
+<span class="sd">                      Custom config format: [{&#39;x&#39;: int, &#39;y&#39;: int, &#39;r&#39;: float, &#39;HU&#39;: float}, ...]</span>
+<span class="sd">        observers: List of strings (e.g., &#39;LG_CHO_2D&#39;) or Observer instances. Default: [&#39;LG_CHO_2D&#39;].</span>
+<span class="sd">        n_reader: Number of readers (bootstraps/splits).</span>
+<span class="sd">        pct_split: Train/test split ratio (0.0 to 1.0).</span>
+<span class="sd">        seed_split: List/array of seeds or None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        pd.DataFrame: DataFrame containing detailed results for each insert and observer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">observers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">observers</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;LG_CHO_2D&#39;</span><span class="p">]</span>
+
+    <span class="n">use_custom_config</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">phantom_config</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Handle ground truth if it is a path (string/Path)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ground_truth</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+        <span class="n">ground_truth</span> <span class="o">=</span> <span class="n">read_mhd</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ground_truth</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ground_truth</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">use_custom_config</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">phantom_config</span> <span class="o">=</span> <span class="n">ground_truth</span>
+
+    <span class="c1"># Process inputs</span>
+    <span class="c1"># Ensure (N, Y, X)</span>
+    <span class="k">if</span> <span class="n">signal_present</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;signal_present must be 3D (N, Y, X)&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">signal_absent</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;signal_absent must be 3D (N, Y, X)&quot;</span><span class="p">)</span>
+        
+    <span class="n">results_list</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="k">if</span> <span class="n">use_custom_config</span><span class="p">:</span>
+        <span class="n">n_inserts</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">phantom_config</span><span class="p">)</span>
+        <span class="n">valid_indices</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_inserts</span><span class="p">)</span>
+        <span class="c1"># Determine crop sizes</span>
+        <span class="c1"># legacy behavior: use max diameter for all crops?</span>
+        <span class="c1"># MATLAB: crop_r = max(insert_rs).</span>
+        <span class="c1"># Then uses current_insert_r for manual crop? No, in measure_LCD refactor:</span>
+        <span class="c1"># sp_imgs = get_ROI_from_manual_selection(..., current_insert_r)</span>
+        <span class="c1"># So it uses individual radius.</span>
+        
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Get truth masks</span>
+        <span class="c1"># truth_masks: (Y, X, N_inserts)</span>
+        <span class="n">truth_masks</span> <span class="o">=</span> <span class="n">get_demo_truth_masks</span><span class="p">(</span><span class="n">ground_truth</span><span class="p">)</span>
+        <span class="n">n_inserts</span> <span class="o">=</span> <span class="n">truth_masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># Determine crop sizes</span>
+        <span class="n">insert_rs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">valid_indices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_inserts</span><span class="p">):</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">truth_masks</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">i</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">valid_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">get_insert_radius</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+            <span class="n">insert_rs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">valid_indices</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No valid inserts found in ground truth.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+
+        <span class="n">crop_r</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">insert_rs</span><span class="p">)</span> <span class="c1"># max diameter</span>
+    
+    <span class="c1"># Loop observers</span>
+    <span class="k">for</span> <span class="n">obs_item</span> <span class="ow">in</span> <span class="n">observers</span><span class="p">:</span>
+        <span class="c1"># Loop inserts</span>
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">valid_indices</span><span class="p">:</span>
+            
+            <span class="k">if</span> <span class="n">use_custom_config</span><span class="p">:</span>
+                <span class="n">cfg</span> <span class="o">=</span> <span class="n">phantom_config</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                <span class="n">x_center</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">cfg</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]))</span>
+                <span class="n">y_center</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">cfg</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]))</span>
+                <span class="n">current_insert_r</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cfg</span><span class="p">[</span><span class="s1">&#39;r&#39;</span><span class="p">])</span> <span class="c1"># this is radius</span>
+                <span class="c1"># Note: MATLAB code treats input &#39;r&#39; as radius, but get_insert_radius returns Diameter?</span>
+                <span class="c1"># measure_LCD.m: insert_diameter_pix = 2*insert_r</span>
+                <span class="c1"># get_insert_radius in MATLAB: returns diameter?</span>
+                <span class="c1"># Python utils.py get_insert_radius: returns diameter (bbox max dim).</span>
+                <span class="c1"># Python measure_LCD (old): insert_r = get_insert_radius -&gt; Diameter.</span>
+                <span class="c1"># LG_CHO channel width = 2/3 * insert_r (Diameter).</span>
+                <span class="c1"># crop_r = max(Diameter).</span>
+                <span class="c1"># get_roi_from_truth_mask(..., nx=2*Diameter). -&gt; nx is half width? No, nx argument in get_roi...</span>
+                <span class="c1"># Let&#39;s align carefully.</span>
+                <span class="c1"># If custom config &#39;r&#39; is RADIUS, then Diameter = 2*r.</span>
+                <span class="c1"># If &#39;r&#39; is Diameter...</span>
+                <span class="c1"># The user will provide Radius usually (click center + radius).</span>
+                <span class="c1"># MATLAB select_inserts_interactive returns x, y.</span>
+                <span class="c1"># measure_LCD1 passed insert_r (scalar).</span>
+                <span class="c1"># Our new MATLAB code expects phantom_config.r (Radius).</span>
+                <span class="c1"># measure_LCD.m refactored:</span>
+                <span class="c1"># insert_diameter_pix = 2*current_insert_r.</span>
+                <span class="c1"># So current_insert_r is RADIUS.</span>
+
+                <span class="c1"># So here, let&#39;s assume cfg[&#39;r&#39;] is RADIUS.</span>
+                <span class="n">radius_pix</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">current_insert_r</span><span class="p">))</span>
+                <span class="n">diameter_pix</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">current_insert_r</span>
+
+                <span class="c1"># Extract ROIs</span>
+                <span class="c1"># get_ROI_from_manual_selection takes radius</span>
+                <span class="n">sp_rois</span> <span class="o">=</span> <span class="n">get_roi_from_manual_selection</span><span class="p">(</span><span class="n">signal_present</span><span class="p">,</span> <span class="n">x_center</span><span class="p">,</span> <span class="n">y_center</span><span class="p">,</span> <span class="n">radius_pix</span><span class="p">)</span>
+                <span class="n">sa_rois</span> <span class="o">=</span> <span class="n">get_roi_from_manual_selection</span><span class="p">(</span><span class="n">signal_absent</span><span class="p">,</span> <span class="n">x_center</span><span class="p">,</span> <span class="n">y_center</span><span class="p">,</span> <span class="n">radius_pix</span><span class="p">)</span>
+
+                <span class="n">insert_hu_val</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;HU&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">truth_mask</span> <span class="o">=</span> <span class="n">truth_masks</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">idx</span><span class="p">]</span>
+                <span class="n">diameter_pix</span> <span class="o">=</span> <span class="n">get_insert_radius</span><span class="p">(</span><span class="n">truth_mask</span><span class="p">)</span> <span class="c1"># Diameter</span>
+
+                <span class="c1"># ROI extraction</span>
+                <span class="c1"># Legacy: nx = 2 * crop_r (Max Diameter)</span>
+                <span class="n">sp_rois</span> <span class="o">=</span> <span class="n">get_roi_from_truth_mask</span><span class="p">(</span><span class="n">truth_mask</span><span class="p">,</span> <span class="n">signal_present</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="mi">2</span><span class="o">*</span><span class="n">crop_r</span><span class="p">)</span>
+                <span class="n">sa_rois</span> <span class="o">=</span> <span class="n">get_roi_from_truth_mask</span><span class="p">(</span><span class="n">truth_mask</span><span class="p">,</span> <span class="n">signal_absent</span><span class="p">,</span> <span class="n">nx</span><span class="o">=</span><span class="mi">2</span><span class="o">*</span><span class="n">crop_r</span><span class="p">)</span>
+
+                <span class="c1"># Determine Insert HU</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="n">ground_truth</span><span class="p">[</span><span class="n">truth_mask</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">insert_hu_val</span> <span class="o">=</span> <span class="n">mode</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">mode</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">insert_hu_val</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+                         <span class="n">insert_hu_val</span> <span class="o">=</span> <span class="n">insert_hu_val</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">insert_hu_val</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="c1"># Check ROI validity</span>
+            <span class="k">if</span> <span class="n">sp_rois</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">sa_rois</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">sp_rois</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+                
+            <span class="c1"># Create/Configure Observer</span>
+            <span class="n">obs_name</span> <span class="o">=</span> <span class="n">obs_item</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obs_item</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">obs_item</span><span class="o">.</span><span class="n">type</span>
+
+            <span class="c1"># Instantiate observer</span>
+            <span class="n">current_obs</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obs_item</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">obs_item</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;LG_CHO_2D&#39;</span><span class="p">:</span>
+                    <span class="n">current_obs</span> <span class="o">=</span> <span class="n">LG_CHO</span><span class="p">(</span><span class="n">sp_rois</span><span class="p">,</span> <span class="n">sa_rois</span><span class="p">,</span> <span class="n">channel_width</span><span class="o">=</span><span class="mi">2</span><span class="o">/</span><span class="mi">3</span> <span class="o">*</span> <span class="n">diameter_pix</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;DOG_CHO_2D&#39;</span><span class="p">:</span>
+                    <span class="n">current_obs</span> <span class="o">=</span> <span class="n">DOG_CHO</span><span class="p">(</span><span class="n">sp_rois</span><span class="p">,</span> <span class="n">sa_rois</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;GABOR_CHO_2D&#39;</span><span class="p">:</span>
+                    <span class="n">current_obs</span> <span class="o">=</span> <span class="n">Gabor_CHO</span><span class="p">(</span><span class="n">sp_rois</span><span class="p">,</span> <span class="n">sa_rois</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;NPWE_2D&#39;</span><span class="p">:</span>
+                    <span class="n">current_obs</span> <span class="o">=</span> <span class="n">NPWE</span><span class="p">(</span><span class="n">sp_rois</span><span class="p">,</span> <span class="n">sa_rois</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown observer: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">current_obs</span> <span class="o">=</span> <span class="n">obs_item</span>
+                <span class="c1"># If LG_CHO, manually update if possible</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">current_obs</span><span class="p">,</span> <span class="s1">&#39;channel_width&#39;</span><span class="p">):</span>
+                     <span class="n">current_obs</span><span class="o">.</span><span class="n">channel_width</span> <span class="o">=</span> <span class="mi">2</span><span class="o">/</span><span class="mi">3</span> <span class="o">*</span> <span class="n">diameter_pix</span>
+                <span class="c1"># Update signals</span>
+                <span class="n">current_obs</span><span class="o">.</span><span class="n">signal_present</span> <span class="o">=</span> <span class="n">sp_rois</span> <span class="o">-</span> <span class="n">sp_rois</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">current_obs</span><span class="o">.</span><span class="n">signal_absent</span> <span class="o">=</span> <span class="n">sa_rois</span> <span class="o">-</span> <span class="n">sa_rois</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            
+            <span class="c1"># Run Study</span>
+            <span class="n">df_res</span> <span class="o">=</span> <span class="n">current_obs</span><span class="o">.</span><span class="n">run_study</span><span class="p">(</span><span class="n">n_readers</span><span class="o">=</span><span class="n">n_reader</span><span class="p">,</span> <span class="n">pct_split</span><span class="o">=</span><span class="n">pct_split</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed_split</span><span class="p">)</span>
+            
+            <span class="c1"># Append metadata</span>
+            <span class="n">df_res</span><span class="p">[</span><span class="s1">&#39;insert_HU&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">insert_hu_val</span>
+            <span class="n">df_res</span><span class="p">[</span><span class="s1">&#39;insert_diameter_pix&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">diameter_pix</span>
+            <span class="n">df_res</span><span class="p">[</span><span class="s1">&#39;insert_idx&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">idx</span>
+            
+            <span class="c1"># Add to list</span>
+            <span class="n">results_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_res</span><span class="p">)</span>
+            
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">results_list</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+        
+    <span class="n">final_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">results_list</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">final_df</span></div>
+
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+
+<div class="viewcode-block" id="plot_results">
+<a class="viewcode-back" href="../../api.html#lcdct.LCD.plot_results">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot_results</span><span class="p">(</span><span class="n">results</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">ylim</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Plots Low Contrast Detectability (LCD) results (AUC).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        results: DataFrame containing LCD results (must contain &#39;auc&#39;, &#39;insert_HU&#39;, &#39;observer&#39;).</span>
+<span class="sd">        ylim: Tuple of (min, max) for y-axis limits.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No results to plot.&quot;</span><span class="p">)</span>
+        <span class="k">return</span>
+        
+    <span class="n">dose_levels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;dose_level&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span> <span class="k">if</span> <span class="s1">&#39;dose_level&#39;</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">else</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span>
+    <span class="n">insert_hus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;insert_HU&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+    <span class="n">observers</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;observer&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+    
+    <span class="k">if</span> <span class="s1">&#39;recon&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+         <span class="n">results</span><span class="p">[</span><span class="s1">&#39;recon&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Unknown&#39;</span>
+    <span class="n">recons</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;recon&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+    
+    <span class="n">n_inserts</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">insert_hus</span><span class="p">)</span>
+    
+    <span class="c1"># Grid size</span>
+    <span class="k">if</span> <span class="n">n_inserts</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span>
+    <span class="k">elif</span> <span class="n">n_inserts</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span> <span class="c1"># Max 4 usually</span>
+        
+    <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+    <span class="n">axes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">axes</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+    
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">hu</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">insert_hus</span><span class="p">):</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="n">subset</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;insert_HU&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">hu</span><span class="p">]</span>
+        
+        <span class="c1"># Group by observer, recon</span>
+        <span class="n">groups</span> <span class="o">=</span> <span class="n">subset</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;observer&#39;</span><span class="p">,</span> <span class="s1">&#39;recon&#39;</span><span class="p">])</span>
+        
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+            <span class="n">obs_name</span><span class="p">,</span> <span class="n">recon_name</span> <span class="o">=</span> <span class="n">name</span>
+            <span class="c1"># If multiple doses</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dose_levels</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">dose_levels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Plot AUC vs Dose</span>
+                <span class="c1"># Aggregate across readers</span>
+                <span class="n">agg</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;dose_level&#39;</span><span class="p">)[</span><span class="s1">&#39;auc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">agg</span><span class="p">([</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;std&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">agg</span><span class="p">[</span><span class="s1">&#39;dose_level&#39;</span><span class="p">],</span> <span class="n">agg</span><span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">],</span> <span class="n">yerr</span><span class="o">=</span><span class="n">agg</span><span class="p">[</span><span class="s1">&#39;std&#39;</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">recon_name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">obs_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">capsize</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Dose Level&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Bar plot for single dose?</span>
+                <span class="c1"># or just plot scatter</span>
+                <span class="n">mean_auc</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+                <span class="n">std_auc</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s1">&#39;auc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">recon_name</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">obs_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">mean_auc</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">std_auc</span><span class="p">,</span> <span class="n">capsize</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+        
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Insert HU: </span><span class="si">{</span><span class="n">hu</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;AUC&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ylim</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">ylim</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+        
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>    </div>
+
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">LCD for CT Toolbox</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html#module-lcd_gui">GUI Applications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html#module-lcdct">MATLAB API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../faq.html">Frequently Asked Questions</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2023, Brandon Nelson, Rongping Zeng, Prabhat Kc.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.1.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
