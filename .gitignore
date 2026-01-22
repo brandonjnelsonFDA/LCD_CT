@@ -1,16 +1,48 @@
-*__pycache__
-*.m~
-*.csv
 
+# Python
+*__pycache__
+*.py[cod]
+*$py.class
+*.egg-info
+.ipynb_checkpoints
+
+# Virtual Environment (Critical)
+.lcd/
+venv/
+env/
+.lcd
+
+# Git
+.git/
+
+# IDE
 .vscode
-data/large_dataset
-mirt-main
-*/.nfs0*
+.idea
+
+# Data Exclusion
+# Ignore all data by default
+data/
+*.raw
+# But allow specific structures
+!data/
+!data/small_dataset/
+!data/small_dataset/fbp/
+!data/small_dataset/fbp/dose_100/
+# Explicitly ignore other doses
+data/small_dataset/fbp/dose_010/
+data/small_dataset/fbp/dose_055/
+data/large_dataset/
+
+# Matlab/Octave
+*.m~
 *.asv
 octave-workspace
+
+# Results
+*.csv
+!.results.csv
+
+# Misc
 *.zip
-.ipynb_checkpoints
-notebooks/data
-*.egg-info
 docs/build
-# Ignore Python bytecode and cache files
+*.log

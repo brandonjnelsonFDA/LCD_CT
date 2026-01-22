@@ -29,7 +29,24 @@ Features
 - Estimating low contrast detectability performance from the MITA-LCD phantom CT images using channelized Hoteling model observer with Laguerre-Gauss (LG) channels and two options of Difference-of-Gaussian (DOG) channels and Gabor channels.
 
 Start Here
+Start Here
 ----------
+
+GUI & Web Application
+~~~~~~~~~~~~~~~~~~~~~
+
+**Web App (Hugging Face)**
+   Use the tool directly in your browser without installation: `Launch LCD-CT Web App <https://huggingface.co/spaces/bnel1201/LCD_CT>`_
+
+**Local GUI**
+   To run the web interface locally:
+
+   .. code-block:: shell
+
+         pip install -r requirements.txt
+         python gradio_app.py
+
+   Open your browser to ``http://localhost:7861``.
 
 .. _version requirements:
 
@@ -100,6 +117,13 @@ Tool Reference
 - RST Reference Number: RST24MD08.01
 - Date of Publication: 09/24/2023
 - Recommended Citation: U.S. Food and Drug Administration. (2023). LCD-CT: Low-contrast Detectability (LCD) Test for Assessing Advanced Nonlinear CT Image Reconstruction and Denoising Methods (RST24MD08.01). https://cdrh-rst.fda.gov/lcd-ct-low-contrast-detectability-lcd-test-assessing-advanced-nonlinear-ct-image-reconstruction-and
+
+Complementary Tools
+-------------------
+
+For additional resources on measuring Low Contrast Detectability, we recommend checking out **CTpro.net**, which offers helpful tools and educational material for CT image quality assessment.
+
+- `CTpro.net <https://ctpro.net>`_
 
 Disclaimer 
 ----------
