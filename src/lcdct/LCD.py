@@ -207,6 +207,7 @@ def measure_LCD(signal_present: np.ndarray, signal_absent: np.ndarray, ground_tr
             # Append metadata
             df_res['insert_HU'] = insert_hu_val
             df_res['insert_diameter_pix'] = diameter_pix
+            df_res['insert_idx'] = idx
             
             # Add to list
             results_list.append(df_res)
