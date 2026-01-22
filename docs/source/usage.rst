@@ -129,6 +129,23 @@ The LCD Phantom Creation code uses functions from `Michigan Image Reconstruction
 
 To test whether the setup is successful, run **demo_test_phantomcreation.m**.
 
+Graphical User Interface (GUI)
+------------------------------
+
+A user-friendly GUI is available for viewing images, defining ROIs, and running LCD analysis.
+
+**Launching the GUI:**
+
+.. code-block:: shell
+
+    python lcd_gui.py
+
+**Features:**
+- **Interactive Viewing:** Scroll through image stacks and adjust window/level settings (presets available).
+- **ROI Selection:** Interactive clicking to define ROI centers for signal present/absent data.
+- **Analysis:** Automatically calculates ROI statistics, performs model observer analysis (LG-CHO), and plots ROC curves.
+- **Results:** Displays AUC, d', and allows downloading results as CSV.
+
 Demos
 -----
 These demos are intended to be run linearly and demonstrate the use of the LCD-CT tool and how it can be used in more sophisticated loops to understand LCD relationships with different imaging conditions, lesions, and model observer types.

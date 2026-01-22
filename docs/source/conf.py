@@ -18,11 +18,14 @@ import sys
 import os
 
 sys.path.insert(0, (pathlib.Path(__file__).parents[2] / "src").resolve().as_posix())
+sys.path.insert(0, (pathlib.Path(__file__).parents[2]).resolve().as_posix())
 extensions = ['sphinxcontrib.matlab',
               'sphinx.ext.autodoc',
               'sphinx.ext.duration',
               'sphinx.ext.doctest',
               'sphinx.ext.autosummary',
+              'sphinx.ext.napoleon',
+              'sphinx.ext.viewcode',
               'sphinx_tabs.tabs']
 
 templates_path = ['_templates']

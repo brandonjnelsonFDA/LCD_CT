@@ -5,13 +5,32 @@ sdk: gradio
 sdk_version: 6.3.0
 ---
 
-# Low Contrast Detectability (LCD) for CT Toolbox
+# Low Contrast Detectability for CT (LCD-CT) Toolbox
 
-The **LCD-CT Toolbox** provides a comprehensive interface to evaluate the low contrast detectability (LCD) performance of CT image reconstruction and denoising algorithms. It uses Model Observers (MO) to calculate the AUC of targets in the MITA-LCD phantom.
+|zenodo| |docs|
 
-## 🚀 Ways to Use LCD-CT
+**Low Contrast Detectability for CT (LCD-CT) Toolbox** provides a common interface to evaluate the low contrast detectability (LCD) performance of advanced nonlinear CT image reconstruction and denoising algorithms. The toolbox uses model observers (MO) to evaluate the LCD of targets with known locations in test images obtained with the [MITA-LCD phantom](https://www.phantomlab.com/catphan-mita). The model observer detection accuracy is measured by the area under the receiver operating characteristic curve (AUC) and the detectability signal-to-noise ratio (d’_{snr}). The LCD-CT toolbox can be used by CT developers to perform initial evaluation on image quality improvement or dose reduction potential of their reconstruction and denoising algorithms.
 
-### 1. Web Application (Hugging Face Spaces)
+<p align="center">
+  <img src="diagram.png" width="800" alt="Diagram">
+</p>
+
+- **Regulatory Science Tool:** Check the FDA website for a description of the LCD-CT toolbox in the [Regulatory Science Tool Catalog](https://cdrh-rst.fda.gov/lcd-ct-low-contrast-detectability-lcd-test-assessing-advanced-nonlinear-ct-image-reconstruction-and)
+
+|zenodo| [![Zenodo Data Access](https://zenodo.org/badge/DOI/10.5281/zenodo.7996580.svg)](https://doi.org/10.5281/zenodo.7996580)
+|docs| [![Documentation Status](https://readthedocs.org/projects/docs/badge/?version=latest)](https://lcd-ct.readthedocs.io/en/latest/?badge=latest)
+
+## Features
+
+- Creating digital replica of the background and signal modules of the [MITA-LCD phantom](https://www.phantomlab.com/catphan-mita).
+- Simulating sinogram and generate fan-beam CT scans of the digital phantoms based on the publicly available [Michigan Image Reconstruction Toolbox (MIRT)](https://github.com/JeffFessler/mirt).
+- Estimating low contrast detectability performance from the MITA-LCD phantom CT images using channelized Hoteling model observer with Laguerre-Gauss (LG) channels and two options of Difference-of-Gaussian (DOG) channels and Gabor channels.
+
+## Start Here
+
+### 🚀 Ways to Use LCD-CT (GUI & Web App)
+
+#### 1. Web Application (Hugging Face Spaces)
 The easiest way to use the tool without installation is via our live web application on Hugging Face:
 
 [**launch LCD-CT Web App**](https://huggingface.co/spaces/bnel1201/LCD_CT)
@@ -21,7 +40,7 @@ The easiest way to use the tool without installation is via our live web applica
 - **Visuals**: Interactive viewer with stack averaging and window/level controls.
 - **Analysis**: Automated ROI selection and LCD measurement.
 
-### 2. Local GUI Application
+#### 2. Local GUI Application
 Run the web interface locally on your machine for faster processing and local file access.
 
 1. **Install Dependencies:**
@@ -35,14 +54,76 @@ Run the web interface locally on your machine for faster processing and local fi
    ```
    The app will open in your browser at `http://localhost:7861`.
 
-### 3. Programmatic Usage
-For researchers and developers, the toolbox offers Python and MATLAB/Octave APIs for batch processing and integration into pipelines.
-See `README.rst` or the `demos/` folder for detailed scripts.
+### Requirements
 
-## 🔗 Complementary Tools
+- **Python (>= 3.8)** with packages listed in `pyproject.toml` (numpy, scipy, scikit-image, etc.)
+- *OR*
+- Matlab (**version > R2016a**) *or* Octave (**version > 4.4**)
+- If the above Matlab or Octave requirements are not met, then [conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) is required to install Octave using the instructions below.
+
+If required versions of Matlab or Octave are not available on your system (see how to get [matlab version](https://www.mathworks.com/help/matlab/ref/version.html) or [octave version](https://docs.octave.org/v4.4.0/System-Information.html#XREFversion)) then see instructions below for how to setup an Octave environment to run LCD-CT.
+
+### Installation
+
+1. Git clone the LCD-CT Toolbox repository:
+
+```shell
+git clone https://github.com/DIDSR/LCD_CT
+cd LCD_CT
+```
+
+2. **Python Installation**:
+
+Create a conda environment and install the package:
+
+```shell
+conda env create --file environment.yml
+conda activate LCD_CT
+pip install -e .
+```
+*Expected run time: 2-5 min*
+
+3. **MATLAB/Octave Installation** (Legacy):
+
+If neither Matlab or Octave are installed or do not meet the [version requirements](#requirements), you can source `install.sh` to prepare a [conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) environment. Note: this can take about 10 minutes to complete.
+
+```shell
+source install.sh
+```
+*Expected run time: 10-30 min*
+
+4. Test the installation
+
+- **Python**: Run the tests using pytest:
+
+```shell
+pytest tests/test_lcd.py
+```
+
+- From the bash command line `octave test.m` or `matlab -batch test.m`
+
+- From the Matlab or Octave interactive prompt
+
+```octave
+>> test
+```
+*Expected run time (Octave): 1 min 30 s*
+
+## Tool Reference
+
+- RST Reference Number: RST24MD08.01
+- Date of Publication: 09/24/2023
+- Recommended Citation: U.S. Food and Drug Administration. (2023). LCD-CT: Low-contrast Detectability (LCD) Test for Assessing Advanced Nonlinear CT Image Reconstruction and Denoising Methods (RST24MD08.01). https://cdrh-rst.fda.gov/lcd-ct-low-contrast-detectability-lcd-test-assessing-advanced-nonlinear-ct-image-reconstruction-and
+
+## Complementary Tools
+
 For additional resources on measuring Low Contrast Detectability, we recommend checking out **CTpro.net**, which offers helpful tools and educational material for CT image quality assessment.
 
 - [**CTpro.net**](https://ctpro.net)
 
----
-*For detailed citations and regulatory information, please refer to [README.rst](README.rst).*
+## Disclaimer
+
+**About the Catalog of Regulatory Science Tools**
+
+The enclosed tool is part of the Catalog of Regulatory Science Tools, which provides a peer-reviewed resource for stakeholders to use where standards and qualified Medical Device Development Tools (MDDTs) do not yet exist. These tools do not replace FDA-recognized standards or MDDTs. This catalog collates a variety of regulatory science tools that the FDA's Center for Devices and Radiological Health's (CDRH) Office of Science and Engineering Labs (OSEL) developed. These tools use the most innovative science to support medical device development and patient access to safe and effective medical devices. If you are considering using a tool from this catalog in your marketing submissions, note that these tools have not been qualified as [Medical Device Development Tools](https://www.fda.gov/medical-devices/medical-device-development-tools-mddt) and the FDA has not evaluated the suitability of these tools within any specific context of use. You may [request feedback or meetings for medical device submissions](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/requests-feedback-and-meetings-medical-device-submissions-q-submission-program) as part of the Q-Submission Program.
+For more information about the Catalog of Regulatory Science Tools, [OSEL_CDRH@fda.hhs.gov](mailto:OSEL_CDRH@fda.hhs.gov).
