@@ -36,10 +36,13 @@
             
   <section id="welcome-to-lcd-for-ct-toolbox-s-documentation">
 <h1>Welcome to LCD for CT Toolbox’s documentation!<a class="headerlink" href="#welcome-to-lcd-for-ct-toolbox-s-documentation" title="Link to this heading">¶</a></h1>
-<p>This documentation provides information regarding how to download, install, and use the LCD for CT Toolbox which is designed to low contrast detectactability in CT images.</p>
+<p>This documentation provides information regarding how to download, install, and use the LCD for CT Toolbox which is designed to low contrast detectability in CT images.</p>
 <section id="introduction">
 <h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
-<p><strong>Low Contrast Detectability for CT (LCD-CT) Toolbox</strong> provides a common interface to evaluate the low contrast detectability (LCD) performance of advanced nonlinear CT image reconstruction and denoising algorithms. The toolbox uses model observers (MO) to evaluate the LCD of targets with known locations in test images obtained with the <a class="reference external" href="https://www.phantomlab.com/catphan-mita">MITA-LCD phantom</a>. The model oberver detection accuracy is measured by the area under the receiver operating characteristic curve (AUC) and the detectability signal-to-noise ratio (d’_{snr}).  The LCD-CT toolbox can be used by CT developers to perform initial evaluation on image quality impprovement or dose reduction potential of their reconstruction and denoising algorithms.</p>
+<p><strong>Low Contrast Detectability for CT (LCD-CT) Toolbox</strong> provides a common interface to evaluate the low contrast detectability (LCD) performance of advanced nonlinear CT image reconstruction and denoising algorithms. The toolbox uses model observers (MO) to evaluate the LCD of targets with known locations in test images obtained with the <a class="reference external" href="https://www.phantomlab.com/catphan-mita">MITA-LCD phantom</a>.</p>
+<p><strong>New:</strong> The toolbox now supports <strong>Custom Phantoms</strong>, allowing users to analyze phantoms with non-standard insert sizes, locations, and contrast levels. Users can define these parameters programmatically or select them interactively.</p>
+<p><strong>New:</strong> A <strong>Graphical User Interface (GUI)</strong> is now available for easier interaction with the toolbox, including image viewing, ROI selection, and result analysis. See the <a class="reference internal" href="usage.html"><span class="doc">Usage</span></a> section for details.</p>
+<p>The model oberver detection accuracy is measured by the area under the receiver operating characteristic curve (AUC) and the detectability signal-to-noise ratio (d’_{snr}).  The LCD-CT toolbox can be used by CT developers to perform initial evaluation on image quality impprovement or dose reduction potential of their reconstruction and denoising algorithms.</p>
 <a class="reference internal image-reference" href="_images/diagram.png"><img alt="_images/diagram.png" class="align-center" src="_images/diagram.png" style="width: 800px;" />
 </a>
 </section>
@@ -125,11 +128,14 @@ octave<span class="w"> </span>--eval<span class="w"> </span><span class="s1">&#3
 <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="usage.html#intended-purpose">Intended Purpose</a></li>
 <li class="toctree-l2"><a class="reference internal" href="usage.html#how-to-use-the-lcd-ct-toolkit">How to Use the LCD-CT Toolkit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#working-with-custom-phantoms">Working with Custom Phantoms</a></li>
 <li class="toctree-l2"><a class="reference internal" href="usage.html#michigan-image-reconstruction-toolkit">Michigan Image Reconstruction Toolkit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#graphical-user-interface-gui">Graphical User Interface (GUI)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="usage.html#demos">Demos</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">Python API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api.html#lcdct.LCD.get_roi_from_manual_selection"><code class="docutils literal notranslate"><span class="pre">get_roi_from_manual_selection()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api.html#lcdct.LCD.measure_LCD"><code class="docutils literal notranslate"><span class="pre">measure_LCD()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api.html#lcdct.LCD.plot_results"><code class="docutils literal notranslate"><span class="pre">plot_results()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api.html#lcdct.Observers.DOG_CHO"><code class="docutils literal notranslate"><span class="pre">DOG_CHO</span></code></a></li>
@@ -147,6 +153,16 @@ octave<span class="w"> </span>--eval<span class="w"> </span><span class="s1">&#3
 <li class="toctree-l2"><a class="reference internal" href="api.html#lcdct.utils.write_mhd"><code class="docutils literal notranslate"><span class="pre">write_mhd()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api.html#lcdct.functions.laguerre"><code class="docutils literal notranslate"><span class="pre">laguerre()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="api.html#lcdct.functions.laguerre_gaussian_2d"><code class="docutils literal notranslate"><span class="pre">laguerre_gaussian_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#lcdct.select_inserts_interactive.select_inserts_interactive"><code class="docutils literal notranslate"><span class="pre">select_inserts_interactive()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html#module-lcd_gui">GUI Applications</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api.html#lcd_gui.LCDApp"><code class="docutils literal notranslate"><span class="pre">LCDApp</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#gradio_app.create_app"><code class="docutils literal notranslate"><span class="pre">create_app()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#gradio_app.draw_overlays"><code class="docutils literal notranslate"><span class="pre">draw_overlays()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#gradio_app.generate_synthetic_data"><code class="docutils literal notranslate"><span class="pre">generate_synthetic_data()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#gradio_app.load_data_from_files"><code class="docutils literal notranslate"><span class="pre">load_data_from_files()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#gradio_app.normalize_for_display"><code class="docutils literal notranslate"><span class="pre">normalize_for_display()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="api.html#module-lcdct">MATLAB API</a></li>
@@ -204,6 +220,7 @@ octave<span class="w"> </span>--eval<span class="w"> </span><span class="s1">&#3
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html#module-lcd_gui">GUI Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api.html#module-lcdct">MATLAB API</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently Asked Questions</a></li>

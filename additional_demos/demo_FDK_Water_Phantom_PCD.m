@@ -77,4 +77,4 @@ disp(res_table);
 
 % Plot results
 custom_insert_names = {'Insert 1', 'Insert 2'};
-plot_results1(res_table, [], custom_insert_names);
+plot_results(res_table, [], custom_insert_names);

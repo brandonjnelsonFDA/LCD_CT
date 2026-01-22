@@ -23,6 +23,7 @@ env/
 # Ignore all data by default
 data/
 *.raw
+docs/build/
 # But allow specific structures
 !data/
 !data/small_dataset/
